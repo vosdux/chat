@@ -11,21 +11,46 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar"
 import { PlusIcon } from "lucide-react"
+import type { Chat } from "./ChatInterface"
 
-// Initial conversation history
-const conversationHistory = [
-  {
-    period: "Сегодня",
-    conversations: [
-      {
-        id: "t1",
-        title: "Текущий чат",
-      },
-    ],
-  },
-]
+interface ChatSidebarProps {
+  chats: Chat[]
+  activeChatId: string | null
+  onSelectChat: (chatId: string) => void
+  onClearActiveChat: () => void
+}
 
-export function ChatSidebar() {
+export function ChatSidebar({
+  chats,
+  activeChatId,
+  onSelectChat,
+  onClearActiveChat,
+}: ChatSidebarProps) {
+  const handleNewChat = () => {
+    // Просто сбрасываем активный чат, чтобы показать центрированный инпут
+    onClearActiveChat()
+  }
+
+  // Группируем чаты по датам
+  const groupedChats = chats.reduce(
+    (acc, chat) => {
+      const today = new Date()
+      const chatDate = new Date(chat.createdAt)
+      const isToday =
+        chatDate.getDate() === today.getDate() &&
+        chatDate.getMonth() === today.getMonth() &&
+        chatDate.getFullYear() === today.getFullYear()
+
+      const period = isToday ? "Сегодня" : "Ранее"
+      if (!acc[period]) {
+        acc[period] = []
+      }
+      acc[period].push(chat)
+      return acc
+    },
+    {} as Record<string, Chat[]>
+  )
+
   return (
     <Sidebar>
       <SidebarHeader className="flex flex-row items-center justify-between gap-2 px-2 py-4">
@@ -35,33 +60,40 @@ export function ChatSidebar() {
             csp-load-agent
           </div>
         </div>
-        {/* <Button variant="ghost" className="size-8">
-          <Search className="size-4" />
-        </Button> */}
       </SidebarHeader>
       <SidebarContent className="pt-4">
         <div className="px-4">
           <Button
-            disabled
             variant="outline"
             className="mb-4 flex w-full items-center gap-2"
+            onClick={handleNewChat}
           >
             <PlusIcon className="size-4" />
             <span>Новый чат</span>
           </Button>
         </div>
-        {conversationHistory.map((group) => (
-          <SidebarGroup key={group.period}>
-            <SidebarGroupLabel>{group.period}</SidebarGroupLabel>
-            <SidebarMenu>
-              {group.conversations.map((conversation) => (
-                <SidebarMenuButton key={conversation.id} isActive>
-                  <span>{conversation.title}</span>
-                </SidebarMenuButton>
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
-        ))}
+        {Object.keys(groupedChats).length === 0 ? (
+          <div className="px-4 text-sm text-muted-foreground">
+            Нет чатов. Создайте новый чат, чтобы начать общение.
+          </div>
+        ) : (
+          Object.entries(groupedChats).map(([period, periodChats]) => (
+            <SidebarGroup key={period}>
+              <SidebarGroupLabel>{period}</SidebarGroupLabel>
+              <SidebarMenu>
+                {periodChats.map((chat) => (
+                  <SidebarMenuButton
+                    key={chat.id}
+                    isActive={chat.id === activeChatId}
+                    onClick={() => onSelectChat(chat.id)}
+                  >
+                    <span>{chat.title}</span>
+                  </SidebarMenuButton>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+          ))
+        )}
       </SidebarContent>
     </Sidebar>
   )
